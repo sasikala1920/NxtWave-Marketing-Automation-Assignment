@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>NxtWave Simple Form (Debug)</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .log { white-space: pre-wrap; background:#f6f6f6; padding:10px; border-radius:6px; margin-top:10px; }
+    .error { color: red; }
+    label { display:block; margin:8px 0 4px; }
+  </style>
+</head>
+<body>
+  <h2>NxtWave Quick Signup</h2>
+
+  <form id="nxtForm">
+    <label>Name:</label>
+    <input name="name" id="name" required value="SASIKALA KONKA" />
+    <label>Email:</label>
+    <input name="email" id="email" type="email" required value="sasikala.konka2004@gmail.com" />
+    <br/><br/>
+    <button type="submit">Submit</button>
+  </form>
+
+  <div id="status" class="log"></div>
+  <div id="response" class="log"></div>
+
+<script>
+(async () => {
+  // ********** CONFIGURE THIS **********
+  const MAKE_WEBHOOK_URL = "REPLACE_WITH_MAKE_WEBHOOK_URL"; // ← PUT your Make webhook URL here
+  // ************************************
+
+  const statusDiv = document.getElementById('status');
+  const responseDiv = document.getElementById('response');
+  const form = document.getElementById('nxtForm');
+
+  function logStatus(text, isError = false) {
+    const time = new Date().toLocaleTimeString();
+    statusDiv.innerText = time + " — " + text + (isError ? " (error)\n" : "\n") + statusDiv.innerText;
+    if (isError) statusDiv.classList.add('error');
+  }
+
+  function showResponse(text) {
+    responseDiv.innerText = text;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // quick guard
+    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("REPLACE_WITH")) {
+      logStatus("Make webhook URL not set. Please replace MAKE_WEBHOOK_URL in the script.", true);
+      return;
+    }
+
+    const payload = {
+      name: document.getElementById('name').value.trim(),
+      email: document.getElementById('email').value.trim()
+    };
+
+    logStatus("Sending POST to Make webhook: " + MAKE_WEBHOOK_URL);
+    logStatus("Payload: " + JSON.stringify(payload));
+
+    try {
+      const resp = await fetch(MAKE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'   // Make accepts JSON webhook payloads
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Always print status + headers + body for debugging
+      logStatus(`HTTP ${resp.status} ${resp.statusText}`);
+
+      // Attempt to read response as text (some webhooks return empty body)
+      const text = await resp.text();
+      showResponse("Response body:\n" + (text || "(empty)"));
+
+      if (resp.ok) {
+        logStatus("Submission successful ✅");
+        alert("Submitted successfully. Check your Make scenario run history and Google Sheet.");
+      } else {
+        logStatus("Submission failed — server returned non-OK status.", true);
+        // show more context in console
+        console.error("Make webhook response:", resp.status, resp.statusText, text);
+        alert("Submission failed — check console + status panel for details.");
+      }
+    } catch (err) {
+      // Network / CORS / DNS etc
+      logStatus("Fetch error: " + err.message, true);
+      showResponse("Full error (see console):\n" + (err.stack || err.message));
+      console.error(err);
+      alert("Submission failed due to network error — check console.");
+    }
+  });
+})();
+</script>
+</body>
+</html>
